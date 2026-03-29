@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    <title>다크모드 에디터 설정하기</title>
+    </head>
+    <body style="background-color: gray; color: snow;">
+        <h1>★나만의 다크모드 에디터★ </h1><br>
+<label> 에디터 제목 :<input type="text"placeholder="제목을 입력하세요."></label><br><br>
+
+<label>내용</label><br>
+<textarea cols="40" rows="25" placeholder="내용을 입력하세요."></textarea></label><br><br>
+
+<label>글자 색상 선택</label><br>
+<input type="color" value="#ff0000"
+onchange="document.getElementById('preview').style.color=this.value"><br>
+
+<br><br>
+<label>글자 크기 조절</label><br>
+<input type="range" min="10" max="50" value="16"
+oninput="document.getElementById('preview').style.fontSize=this.value+'px'"><br><br>
+  
+
+
+<label>미리보기</label><br>
+<div id="preview" style="border:1px solid gray; padding:10px;">
+    여기에 미리보기가 표시됩니다.
+</div><br>
+</datalist>
+
+
+<input type="submit" value="제출">
+
+    </body>
+</html>
+
+
+0 <input type="range" list="temp" min="0" max="100">100
+<datalist id="temp">
