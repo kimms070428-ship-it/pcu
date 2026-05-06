@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>방문 시간에 따라 배경색 변경</title>
+    <script>
+        function setBackgroundColor() {
+            // 1. 현재 시간 정보 가져오기
+            let now = new Date();
+            let hours = now.getHours(); // 0~23 사이의 시간
+
+            // 2. 시간에 따라 배경색 결정
+            // 12시 미만이면 오전, 12시 이상이면 오후로 판단
+            if (hours < 12) {
+                document.body.style.backgroundColor = "lightskyblue";
+            } else {
+                document.body.style.backgroundColor = "orange";
+            }
+
+            // 3. 현재 시간 화면에 출력하기
+            let timeString = "현재 시간 : " + hours + "시," + now.getMinutes() + "분," + now.getSeconds() + "초";
+            document.getElementById("clock").innerHTML = timeString;
+        }
+    </script>
+</head>
+<body onload="setBackgroundColor()">
+    <h3>오전이면 lightskyblue, 오후이면 orange 배경</h3>
+    <hr>
+    <div id="clock"></div>
+</body>
+</html>

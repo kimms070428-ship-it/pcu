@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>방문 요일에 따라 배경색 변경</title>
+    <script>
+        function setDayBackground() {
+            // 1. 현재 날짜 정보 가져오기
+            let now = new Date();
+            let day = now.getDay(); // 일요일(0), 월요일(1), ..., 토요일(6)
+            let date = now.getDate(); // 오늘 날짜 (숫자)
+            
+            // 요일 숫자를 한글 문자열로 변환하기 위한 배열
+            let week = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+            let dayName = week[day];
+
+            // 2. 요일에 따라 배경색 결정
+            // 일요일(0)이면 pink, 그 외(1~6)는 gold
+            if (day === 0) {
+                document.body.style.backgroundColor = "pink";
+            } else {
+                document.body.style.backgroundColor = "gold";
+            }
+
+            // 3. 화면에 오늘 날짜와 요일 출력
+            let resultText = "오늘 : " + date + "일," + dayName;
+            document.getElementById("display").innerHTML = resultText;
+        }
+    </script>
+</head>
+<body onload="setDayBackground()">
+    <h3>일요일은 pink, 다른 요일은 gold 배경</h3>
+    <hr>
+    <div id="display"></div>
+</body>
+</html>
