@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>두더지 잡기</title>
+
+<style>
+body {
+    text-align: center;
+    font-family: Arial;
+}
+
+canvas {
+    border: 2px solid black;
+}
+</style>
+
+</head>
+<body>
+
+<h1>두더지 잡기</h1>
+
+<p>
+점수 :
+<span id="score">0</span> | 남은 시간 : <span id="time">30</span>초 
+</p>
+
+<button onclick="startGame()">게임 시작</button>
+
+<canvas id="gameCanvas"
+        width="600"
+        height="400">
+</canvas>
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreText = document.getElementById("score");
+    const timeText = document.getElementById("time");
+
+    let moleX = 300;
+    let moleY = 200;
+    let moleRadius = 30; 
+
+    let score = 0;
+
+    let timeLeft = 30;
+    let gameRunning = false;
+    let moleSpeed = 900;
+    let timerId;
+    let moleMoveId;
+
+    function startGame(){
+        if (gameRunning) return; 
+
+        score = 0;
+        timeLeft = 30;
+        gameRunning = true;
+        
+        scoreText.textContent = score;
+        timeText.textContent = timeLeft;
+
+        clearInterval(timerId);
+        clearInterval(moleMoveId);
+
+        moveMole();
+        
+        timerId = setInterval(() =>{
+            timeLeft--;
+            timeText.textContent = timeLeft;
+            if(timeLeft <= 0){
+                endGame();
+            }
+        }, 1000);
+        
+        moleMoveId = setInterval(moveMole, moleSpeed);
+    }
+
+    function endGame(){
+        gameRunning = false;
+        clearInterval(timerId);
+        clearInterval(moleMoveId);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '32px Arial';
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("게임종료!", canvas.width / 2, 180);
+        ctx.fillText("최종점수: " + score, canvas.width / 2, 230);
+    }
+
+    function drawMole() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (!gameRunning) return; // 
+
+        ctx.beginPath();
+        ctx.arc(moleX, moleY, moleRadius, 0, Math.PI * 2);
+        ctx.fillStyle = "#795548";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(moleX - 10, moleY - 5, 4, 0, Math.PI * 2);
+        ctx.arc(moleX + 10, moleY - 5, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "black";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(moleX, moleY + 5, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "pink";
+        ctx.fill();
+    } 
+
+    function moveMole() {
+        if (!gameRunning) return;
+
+        moleX = Math.random() * (canvas.width - 80) + 40;
+        moleY = Math.random() * (canvas.height - 80) + 40;
+        drawMole();
+    }
+
+    canvas.addEventListener("click", function(event){
+        if (!gameRunning) return; 
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const dx = mouseX - moleX;
+        const dy = mouseY - moleY;
+        const distance = Math.sqrt(dx * dx + dy * dy); 
+        
+        if(distance <= moleRadius) {
+            score++;
+            scoreText.textContent = score;
+            
+            // 잡았을 때 두더지  초기화
+            clearInterval(moleMoveId);
+            moveMole();
+            moleMoveId = setInterval(moveMole, moleSpeed);
+        }
+    });
+</script>
+
+</body>
+</html>
