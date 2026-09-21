@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>공 잡기 게임 - 난이도 업</title>
+
+<style>
+body{
+    text-align:center;
+    font-family:Arial;
+}
+
+canvas{
+    border:2px solid black;
+}
+</style>
+
+</head>
+<body>
+
+<h1>공 잡기 게임</h1>
+
+<p>
+점수 : <span id="score">0</span> |
+남은시간 : <span id="time">30</span>초 |
+속도 : <span id="speed">1</span> 단계
+</p>
+<button onclick="startGame()">게임 시작</button>
+
+<br><br>
+
+<canvas
+    id="gameCanvas"
+    width="600"
+    height="400">
+</canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const scoreText = document.getElementById("score");
+    const speedText = document.getElementById("speed");
+    const timeText = document.getElementById("time");
+
+    let score = 0;
+    let speedLevel = 1;
+    let timeLeft = 30;
+    let gameRunning = false;
+    let timerId;
+    let animId;
+
+    // 공 2개를 담는 배열
+    let balls = [];
+
+    function startGame() {
+        if(animId) {
+            cancelAnimationFrame(animId);
+        }
+
+        // 초기화
+        score = 0;
+        timeLeft = 30;
+        speedLevel = 1;
+        
+        scoreText.textContent = score;
+        timeText.textContent = timeLeft;
+        speedText.textContent = speedLevel;
+
+        // 공 2개 초기화 (초기 반지름: 30)
+        balls = [
+            { x: 200, y: 200, radius: 30, dx: 3, dy: 2, color: "tomato" },
+            { x: 400, y: 200, radius: 30, dx: -3, dy: -2, color: "dodgerblue" }
+        ];
+
+        gameRunning = true;
+
+        clearInterval(timerId);
+        timerId = setInterval(() => {
+            timeLeft--;
+            timeText.textContent = timeLeft;
+            if(timeLeft <= 0) endGame();
+        }, 1000);
+
+        drawGame();
+    }
+
+    // 공 그리기 및 위치 업데이트
+    function updateAndDrawBalls() {
+        balls.forEach(ball => {
+            // 1. 공 그리기
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.closePath();
+
+            // 2. 공 위치 이동
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // 3. 벽면 충돌 처리
+            if(ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0){
+                ball.dx = -ball.dx;
+            }
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0){
+                ball.dy = -ball.dy;
+            }
+        });
+    }
+
+    function drawGame() {
+        if(!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        updateAndDrawBalls();
+        animId = requestAnimationFrame(drawGame);
+    }
+
+    // 마우스 클릭 이벤트
+    canvas.addEventListener("click", function(event){
+        if(!gameRunning) return; 
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // 2개의 공을 각각 순회하며 클릭 여부 확인
+        balls.forEach(ball => {
+            const dx = mouseX - ball.x;
+            const dy = mouseY - ball.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // 공을 클릭했을 때
+            if(distance <= ball.radius){
+                score++;
+                scoreText.textContent = score;
+                
+                speedLevel++;
+                speedText.textContent = speedLevel;
+
+                // [효과 1] 점수가 오를수록 공의 반지름 감소 (최소 크기 10)
+                ball.radius = Math.max(10, ball.radius - 1.5);
+
+                // 속도 증가
+                if(ball.dx > 0) ball.dx += 0.4;
+                else ball.dx -= 0.4;
+
+                if(ball.dy > 0) ball.dy += 0.4;
+                else ball.dy -= 0.4;
+
+                // 클릭된 공 무작위 위치로 이동
+                moveBallRandom(ball);
+            }
+        });
+    });
+
+    function moveBallRandom(ball){
+        ball.x = Math.random() * (canvas.width - ball.radius * 2) + ball.radius;
+        ball.y = Math.random() * (canvas.height - ball.radius * 2) + ball.radius;
+    }
+
+    function endGame(){
+        gameRunning = false;
+        clearInterval(timerId);
+        cancelAnimationFrame(animId);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "32px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("게임종료!", canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText("최종점수 : " + score, canvas.width / 2, canvas.height / 2 + 20);
+    }
+</script>
+</body>
+</html>
