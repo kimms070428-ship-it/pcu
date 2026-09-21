@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>예제 1: 무지개 과녁</title>
+</head>
+
+<body>
+    <canvas id="myCanvas" width="400" height="400" style="background: #222;"></canvas>
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const ball = {
+            x:200, y:200, radius:120, dx:3, dy:2
+        };
+
+        const colors = ["red", "orange", "yellow", "green", "blue",];
+
+        function drawBall(){
+            for (let i = 0; i < colors.length; i++) {
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.radius - (i * 26), 0, Math.PI * 2);
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+        drawBall();
+
+    </script>
+
+</body>
+
+</html>
