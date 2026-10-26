@@ -1,0 +1,325 @@
+	<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>장애물 피하기 게임</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial;
+        }
+
+        canvas {
+            border: 2px solid black;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>장애물 피하기 게임</h1>
+    <p>점수: <span id="score">0</span> | 체력: <span id="hp">100</span></p>
+    <p>조작: 방향키 ↑ ↓ ← →</p>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const scoreText = document.getElementById("score");
+        const hpText = document.getElementById("hp");
+
+        let score = 0;
+        let hp = 100;
+        let gameOver = false;
+
+        let frameCount = 0;
+        let spawnInterval = 42;
+
+        const player = {
+            x: 280,
+            y: 330,
+            width: 40,
+            height: 40,
+            speed: 6
+        };
+
+        function drawPalyer() {
+            ctx.fillStyle = "royalblue";
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        const keys = {};
+
+        document.addEventListener("keydown", function (event) {
+            keys[event.key] = true;
+        });
+        document.addEventListener("keyup", function (event) {
+            keys[event.key] = false;
+        });
+
+        function movePlayer() {
+            if (keys["ArrowLeft"]) {
+                player.x -= player.speed;
+            }
+            if (keys["ArrowRight"]) {
+                player.x += player.speed;
+            }
+            if (keys["ArrowUp"]) {
+                player.y -= player.speed;
+            }
+            if (keys["ArrowDown"]) {
+                player.y += player.speed;
+            }
+
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y < 0) player.y = 0;
+            if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+        }
+
+        const rocks = [];      // 일반 회색 공 (피해량 20)
+        const redRocks = [];   // [추가] 빨간 공 (피해량 40)
+        const items = [];      // 체력 회복 아이템 (초록 공)
+
+        // 일반 회색 공 생성
+        function createRock() {
+            const rock = {
+                x: Math.random() * (canvas.width - 30),
+                y: -30,
+                width: 30,
+                height: 30,
+                speed: Math.random() * 3 + 2,
+                damage: 20
+            };
+            rocks.push(rock);
+        }
+
+        // [추가] 빨간 공 생성 (피해량 40, 더 빠른 속도)
+        function createRedRock() {
+            const redRock = {
+                x: Math.random() * (canvas.width - 30),
+                y: -30,
+                width: 30,
+                height: 30,
+                speed: Math.random() * 3 + 4,
+                damage: 40
+            };
+            redRocks.push(redRock);
+        }
+
+        // 체력 회복 아이템 생성
+        function createItem() {
+            const item = {
+                x: Math.random() * (canvas.width - 25),
+                y: -25,
+                width: 25,
+                height: 25,
+                speed: 2.5,
+                heal: 15
+            };
+            items.push(item);
+        }
+
+        // 공/아이템 그리기
+        function drawRocks() {
+            // 1. 일반 회색 공
+            ctx.fillStyle = "gray";
+            for (let rock of rocks) {
+                ctx.beginPath();
+                ctx.arc(
+                    rock.x + rock.width / 2,
+                    rock.y + rock.height / 2,
+                    rock.width / 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+
+            // 2. [추가] 빨간 공 (대미지 40)
+            ctx.fillStyle = "red";
+            for (let redRock of redRocks) {
+                ctx.beginPath();
+                ctx.arc(
+                    redRock.x + redRock.width / 2,
+                    redRock.y + redRock.height / 2,
+                    redRock.width / 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+
+        function drawItems() {
+            ctx.fillStyle = "limegreen";
+            for (let item of items) {
+                ctx.beginPath();
+                ctx.arc(
+                    item.x + item.width / 2,
+                    item.y + item.height / 2,
+                    item.width / 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+
+        // 공 및 아이템 이동
+        function moveRocks() {
+            // 회색 공 이동
+            for (let rock of rocks) {
+                rock.y += rock.speed;
+            }
+            for (let i = rocks.length - 1; i >= 0; i--) {
+                if (rocks[i].y > canvas.height) {
+                    rocks.splice(i, 1);
+                    score++;
+                    scoreText.textContent = score;
+                }
+            }
+
+            // [추가] 빨간 공 이동
+            for (let redRock of redRocks) {
+                redRock.y += redRock.speed;
+            }
+            for (let i = redRocks.length - 1; i >= 0; i--) {
+                if (redRocks[i].y > canvas.height) {
+                    redRocks.splice(i, 1);
+                    score += 2; // 빨간 공을 피하면 점수 +2
+                    scoreText.textContent = score;
+                }
+            }
+
+            // 아이템 이동
+            for (let item of items) {
+                item.y += item.speed;
+            }
+            for (let i = items.length - 1; i >= 0; i--) {
+                if (items[i].y > canvas.height) {
+                    items.splice(i, 1);
+                }
+            }
+        }
+
+        // 충돌 체크
+        function checkCollision() {
+            // 1. 회색 공 충돌 (체력 -20)
+            for (let i = rocks.length - 1; i >= 0; i--) {
+                const rock = rocks[i];
+
+                if (player.x < rock.x + rock.width &&
+                    player.x + player.width > rock.x &&
+                    player.y < rock.y + rock.height &&
+                    player.y + player.height > rock.y) {
+                    hp -= rock.damage;
+
+                    if (hp < 0) hp = 0;
+                    hpText.textContent = hp;
+                    rocks.splice(i, 1);
+                    if (hp <= 0) endGame();
+                }
+            }
+
+            // 2. [추가] 빨간 공 충돌 (체력 -40)
+            for (let i = redRocks.length - 1; i >= 0; i--) {
+                const redRock = redRocks[i];
+
+                if (player.x < redRock.x + redRock.width &&
+                    player.x + player.width > redRock.x &&
+                    player.y < redRock.y + redRock.height &&
+                    player.y + player.height > redRock.y) {
+                    hp -= redRock.damage; // 40 대미지 적용
+
+                    if (hp < 0) hp = 0;
+                    hpText.textContent = hp;
+                    redRocks.splice(i, 1);
+                    if (hp <= 0) endGame();
+                }
+            }
+
+            // 3. 체력 회복 아이템 충돌 (체력 +15)
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+
+                if (player.x < item.x + item.width &&
+                    player.x + player.width > item.x &&
+                    player.y < item.y + item.height &&
+                    player.y + player.height > item.y) {
+                    
+                    hp += item.heal;
+                    if (hp > 100) hp = 100;
+                    
+                    hpText.textContent = hp;
+                    items.splice(i, 1);
+                }
+            }
+        }
+
+        function drawHpBar() {
+            ctx.fillStyle = "lightgray";
+            ctx.fillRect(20, 20, 200, 20);
+            
+            ctx.fillStyle = "limegreen";
+            ctx.fillRect(20, 20, hp * 2, 20);
+            
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(20, 20, 200, 20);
+        }
+
+        function endGame() {
+            gameOver = true;
+
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = "32px Arial";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText("최종 점수:" + score, canvas.width / 2, canvas.height / 2 + 30);
+        }
+
+        function gameLoop() {
+            if (gameOver) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            frameCount++;
+
+            // 시간이 지날수록 회색 공 생성 간격 단축
+            if (frameCount % 600 === 0 && spawnInterval > 10) {
+                spawnInterval -= 2;
+            }
+
+            // 회색 공 생성
+            if (frameCount % spawnInterval === 0) {
+                createRock();
+            }
+
+            // [추가] 약 5초(300 프레임)마다 빨간 공 생성
+            if (frameCount % 300 === 0) {
+                createRedRock();
+            }
+
+            // 약 8초(480 프레임)마다 체력 회복 아이템 생성
+            if (frameCount % 480 === 0) {
+                createItem();
+            }
+
+            movePlayer();
+            moveRocks();
+            checkCollision();
+            drawPalyer();
+            drawRocks();
+            drawItems();
+            drawHpBar();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+
+</html>
