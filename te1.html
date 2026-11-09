@@ -1,9 +1,10 @@
-	<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 
 <head>
     <meta charset="UTF-8">
-    <title>장애물 피하기 게임</title>
+    <title>Flappy Bird</title>
+
     <style>
         body {
             text-align: center;
@@ -12,313 +13,276 @@
 
         canvas {
             border: 2px solid black;
-            background: #f9f9f9;
+            background: skyblue;
         }
     </style>
 </head>
 
 <body>
-    <h1>장애물 피하기 게임</h1>
-    <p>점수: <span id="score">0</span> | 체력: <span id="hp">100</span></p>
-    <p>조작: 방향키 ↑ ↓ ← →</p>
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <h1>Flappy Bird</h1>
+    <p>점수: <span id="score">0</span> | 최고기록 :<span id="highScore">0</span></p>
+    <p>조작: Space 키 또는 마우스 클릭<button id="restartBtn" onclick="restart(); this.blur();">다시 시작</button></p>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+    
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
         const scoreText = document.getElementById("score");
-        const hpText = document.getElementById("hp");
-
         let score = 0;
-        let hp = 100;
         let gameOver = false;
 
-        let frameCount = 0;
-        let spawnInterval = 42;
-
-        const player = {
-            x: 280,
-            y: 330,
-            width: 40,
-            height: 40,
-            speed: 6
+        const bird = {
+            x: 80, y: 250, radius: 15,
+            velocity: 0,
+            gravity: 0.3,
+            jumpPower: -8
         };
 
-        function drawPalyer() {
-            ctx.fillStyle = "royalblue";
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+        function drawBird() {
+            ctx.beginPath();
+            ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "yellow";
+            ctx.fill();
+
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(bird.x + 5, bird.y - 5, 3, 0, Math.PI * 2);
+            ctx.fill();
         }
 
-        const keys = {};
+        function moveBird() {
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            if (bird.y - bird.radius < 0 || bird.y + bird.radius > canvas.height) {
+                endGame();
+            }
+        }
+
+        function jump() {
+            if (gameOver || countdown > 0) return;
+            bird.velocity = bird.jumpPower;
+        }
 
         document.addEventListener("keydown", function (event) {
-            keys[event.key] = true;
+            if (event.code === "Space") {
+                event.preventDefault(); // 스페이스바 스크롤 방지
+                jump();
+            }
         });
-        document.addEventListener("keyup", function (event) {
-            keys[event.key] = false;
-        });
 
-        function movePlayer() {
-            if (keys["ArrowLeft"]) {
-                player.x -= player.speed;
-            }
-            if (keys["ArrowRight"]) {
-                player.x += player.speed;
-            }
-            if (keys["ArrowUp"]) {
-                player.y -= player.speed;
-            }
-            if (keys["ArrowDown"]) {
-                player.y += player.speed;
-            }
+        canvas.addEventListener("click", jump);
 
-            if (player.x < 0) player.x = 0;
-            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-            if (player.y < 0) player.y = 0;
-            if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+        let timer = null;
+
+        function restart() {
+            if (!gameOver) return;
+
+            bird.y = 250;
+            bird.velocity = 0;
+
+            pipes.length = 0;
+            coins.length = 0; // 코인 초기화
+            score = 0;
+            scoreText.textContent = score;
+            pipespeed = 3; // 속도 초기화
+
+            if (timer) clearInterval(timer);
+            startCountdown();
+
+            gameOver = false;
+            gameLoop();
         }
 
-        const rocks = [];      // 일반 회색 공 (피해량 20)
-        const redRocks = [];   // [추가] 빨간 공 (피해량 40)
-        const items = [];      // 체력 회복 아이템 (초록 공)
+        let countdown = 3;
 
-        // 일반 회색 공 생성
-        function createRock() {
-            const rock = {
-                x: Math.random() * (canvas.width - 30),
-                y: -30,
-                width: 30,
-                height: 30,
-                speed: Math.random() * 3 + 2,
-                damage: 20
-            };
-            rocks.push(rock);
+        function startCountdown() {
+            countdown = 3;
+            timer = setInterval(function () {
+                countdown--;
+                if (countdown <= 0) clearInterval(timer);
+            }, 1000);
         }
 
-        // [추가] 빨간 공 생성 (피해량 40, 더 빠른 속도)
-        function createRedRock() {
-            const redRock = {
-                x: Math.random() * (canvas.width - 30),
-                y: -30,
-                width: 30,
-                height: 30,
-                speed: Math.random() * 3 + 4,
-                damage: 40
-            };
-            redRocks.push(redRock);
-        }
+        const pipes = [];
+        const coins = []; // [추가] 코인 배열
+        const pipeWidth = 60;
+        let pipespeed = 3;
 
-        // 체력 회복 아이템 생성
-        function createItem() {
-            const item = {
-                x: Math.random() * (canvas.width - 25),
-                y: -25,
-                width: 25,
-                height: 25,
-                speed: 2.5,
-                heal: 15
-            };
-            items.push(item);
-        }
+        function createPipe() {
+            if (countdown > 0 || gameOver) return;
 
-        // 공/아이템 그리기
-        function drawRocks() {
-            // 1. 일반 회색 공
-            ctx.fillStyle = "gray";
-            for (let rock of rocks) {
-                ctx.beginPath();
-                ctx.arc(
-                    rock.x + rock.width / 2,
-                    rock.y + rock.height / 2,
-                    rock.width / 2,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            }
+            // [추가/난이도] 파이프 간격(Gap)을 110 ~ 170 사이로 무작위 변경
+            const currentGap = Math.floor(Math.random() * 61) + 110;
+            const topHeight = Math.random() * 220 + 50;
 
-            // 2. [추가] 빨간 공 (대미지 40)
-            ctx.fillStyle = "red";
-            for (let redRock of redRocks) {
-                ctx.beginPath();
-                ctx.arc(
-                    redRock.x + redRock.width / 2,
-                    redRock.y + redRock.height / 2,
-                    redRock.width / 2,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
+            pipes.push({
+                x: canvas.width,
+                topHeight: topHeight,
+                bottomY: topHeight + currentGap,
+                passed: false
+            });
+
+            // [추가] 파이프 생성 시 60% 확률로 중앙에 코인 생성
+            if (Math.random() < 0.6) {
+                coins.push({
+                    x: canvas.width + pipeWidth / 2,
+                    y: topHeight + currentGap / 2,
+                    radius: 10,
+                    collected: false
+                });
             }
         }
 
-        function drawItems() {
-            ctx.fillStyle = "limegreen";
-            for (let item of items) {
-                ctx.beginPath();
-                ctx.arc(
-                    item.x + item.width / 2,
-                    item.y + item.height / 2,
-                    item.width / 2,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
+        function drawPipes() {
+            ctx.fillStyle = "green";
+
+            for (let pipe of pipes) {
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, canvas.height - pipe.bottomY);
+            }
+
+            // [추가] 코인 그리기 (노란색 동전 + 반짝임)
+            for (let coin of coins) {
+                if (!coin.collected) {
+                    ctx.fillStyle = "gold";
+                    ctx.beginPath();
+                    ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = "orange";
+                    ctx.stroke();
+
+                    ctx.fillStyle = "white";
+                    ctx.beginPath();
+                    ctx.arc(coin.x - 3, coin.y - 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
-        // 공 및 아이템 이동
-        function moveRocks() {
-            // 회색 공 이동
-            for (let rock of rocks) {
-                rock.y += rock.speed;
-            }
-            for (let i = rocks.length - 1; i >= 0; i--) {
-                if (rocks[i].y > canvas.height) {
-                    rocks.splice(i, 1);
+        function movePipes() {
+            // [추가/난이도] 점수가 높아질수록 파이프 속도가 점점 빨라짐 (최대 7까지)
+            pipespeed = 3 + Math.floor(score / 5) * 0.5;
+            if (pipespeed > 7) pipespeed = 7;
+
+            for (let pipe of pipes) {
+                pipe.x -= pipespeed;
+                if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
                     score++;
                     scoreText.textContent = score;
+                    pipe.passed = true;
+
+                    updateHighScore();
                 }
             }
 
-            // [추가] 빨간 공 이동
-            for (let redRock of redRocks) {
-                redRock.y += redRock.speed;
-            }
-            for (let i = redRocks.length - 1; i >= 0; i--) {
-                if (redRocks[i].y > canvas.height) {
-                    redRocks.splice(i, 1);
-                    score += 2; // 빨간 공을 피하면 점수 +2
+            // [추가] 코인 이동 및 새와 충돌(먹기) 체크
+            for (let coin of coins) {
+                coin.x -= pipespeed;
+
+                const dist = Math.hypot(bird.x - coin.x, bird.y - coin.y);
+                if (!coin.collected && dist < bird.radius + coin.radius) {
+                    coin.collected = true;
+                    score += 3; // [추가] 코인 먹으면 점수 +3점 추가!
                     scoreText.textContent = score;
+                    updateHighScore();
                 }
             }
 
-            // 아이템 이동
-            for (let item of items) {
-                item.y += item.speed;
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
             }
-            for (let i = items.length - 1; i >= 0; i--) {
-                if (items[i].y > canvas.height) {
-                    items.splice(i, 1);
+
+            for (let i = coins.length - 1; i >= 0; i--) {
+                if (coins[i].x + coins[i].radius < 0) {
+                    coins.splice(i, 1);
                 }
             }
         }
 
-        // 충돌 체크
         function checkCollision() {
-            // 1. 회색 공 충돌 (체력 -20)
-            for (let i = rocks.length - 1; i >= 0; i--) {
-                const rock = rocks[i];
+            for (let pipe of pipes) {
+                const birdLeft = bird.x - bird.radius;
+                const birdRight = bird.x + bird.radius;
+                const birdTop = bird.y - bird.radius;
+                const birdBottom = bird.y + bird.radius;
 
-                if (player.x < rock.x + rock.width &&
-                    player.x + player.width > rock.x &&
-                    player.y < rock.y + rock.height &&
-                    player.y + player.height > rock.y) {
-                    hp -= rock.damage;
+                const pipeLeft = pipe.x;
+                const pipeRight = pipe.x + pipeWidth;
 
-                    if (hp < 0) hp = 0;
-                    hpText.textContent = hp;
-                    rocks.splice(i, 1);
-                    if (hp <= 0) endGame();
+                const hitTopPipe = 
+                    birdRight > pipeLeft &&
+                    birdLeft < pipeRight &&
+                    birdTop < pipe.topHeight;
+
+                const hitBottomPipe =
+                    birdRight > pipeLeft &&
+                    birdLeft < pipeRight &&
+                    birdBottom > pipe.bottomY;
+
+                if (hitTopPipe || hitBottomPipe) {
+                    endGame();
                 }
             }
-
-            // 2. [추가] 빨간 공 충돌 (체력 -40)
-            for (let i = redRocks.length - 1; i >= 0; i--) {
-                const redRock = redRocks[i];
-
-                if (player.x < redRock.x + redRock.width &&
-                    player.x + player.width > redRock.x &&
-                    player.y < redRock.y + redRock.height &&
-                    player.y + player.height > redRock.y) {
-                    hp -= redRock.damage; // 40 대미지 적용
-
-                    if (hp < 0) hp = 0;
-                    hpText.textContent = hp;
-                    redRocks.splice(i, 1);
-                    if (hp <= 0) endGame();
-                }
-            }
-
-            // 3. 체력 회복 아이템 충돌 (체력 +15)
-            for (let i = items.length - 1; i >= 0; i--) {
-                const item = items[i];
-
-                if (player.x < item.x + item.width &&
-                    player.x + player.width > item.x &&
-                    player.y < item.y + item.height &&
-                    player.y + player.height > item.y) {
-                    
-                    hp += item.heal;
-                    if (hp > 100) hp = 100;
-                    
-                    hpText.textContent = hp;
-                    items.splice(i, 1);
-                }
-            }
-        }
-
-        function drawHpBar() {
-            ctx.fillStyle = "lightgray";
-            ctx.fillRect(20, 20, 200, 20);
-            
-            ctx.fillStyle = "limegreen";
-            ctx.fillRect(20, 20, hp * 2, 20);
-            
-            ctx.strokeStyle = "black";
-            ctx.strokeRect(20, 20, 200, 20);
         }
 
         function endGame() {
             gameOver = true;
+            updateHighScore();
 
-            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
             ctx.font = "32px Arial";
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
-            ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 20);
-            ctx.fillText("최종 점수:" + score, canvas.width / 2, canvas.height / 2 + 30);
+            ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 40);
+            ctx.font = "20px Arial";
+            ctx.fillText("점수 : " + score, canvas.width / 2, canvas.height / 2 + 5);
+            ctx.fillText("최고기록 : " + highScore, canvas.width / 2, canvas.height / 2 + 35);
+        }
+
+        const highScoreText = document.getElementById("highScore");
+        let highScore = Number(localStorage.getItem("flappyHighScore")) || 0;
+        highScoreText.textContent = highScore;
+
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                highScoreText.textContent = highScore;
+                localStorage.setItem("flappyHighScore", highScore);
+            }
         }
 
         function gameLoop() {
             if (gameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            frameCount++;
+            if (countdown > 0) {
+                drawBird();
+                drawPipes();
+                ctx.font = "80px Arial";
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.fillText(countdown, canvas.width / 2, canvas.height / 2);
 
-            // 시간이 지날수록 회색 공 생성 간격 단축
-            if (frameCount % 600 === 0 && spawnInterval > 10) {
-                spawnInterval -= 2;
+                requestAnimationFrame(gameLoop);
+                return;
             }
-
-            // 회색 공 생성
-            if (frameCount % spawnInterval === 0) {
-                createRock();
-            }
-
-            // [추가] 약 5초(300 프레임)마다 빨간 공 생성
-            if (frameCount % 300 === 0) {
-                createRedRock();
-            }
-
-            // 약 8초(480 프레임)마다 체력 회복 아이템 생성
-            if (frameCount % 480 === 0) {
-                createItem();
-            }
-
-            movePlayer();
-            moveRocks();
+            moveBird();
+            movePipes();
             checkCollision();
-            drawPalyer();
-            drawRocks();
-            drawItems();
-            drawHpBar();
+            drawBird();
+            drawPipes();
             requestAnimationFrame(gameLoop);
         }
 
+        setInterval(createPipe, 1500);
+        startCountdown();
         gameLoop();
+
     </script>
 </body>
 
